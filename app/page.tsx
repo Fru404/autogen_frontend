@@ -300,7 +300,10 @@ export default function Home() {
 
           <p className="mt-7 max-w-xl text-base leading-7 text-[#625b38] sm:text-lg">
             Upload a Word template and your client data. Autogen fills
-            everything in and gives you a ready-to-download ZIP.
+            everything in and gives you a ready-to-download ZIP.{" "}
+            <p className="text-[#8B0000]">
+              Files uploaded are not stored by the site.
+            </p>
           </p>
         </section>
 
@@ -608,21 +611,16 @@ export default function Home() {
 
                   <button
                     type="button"
-                    disabled={!inspection.settings.pdf_enabled}
                     onClick={() => setGeneratePdf(!generatePdf)}
+                    disabled={true}
                     className={`
-                      relative
-                      h-7
-                      w-12
-                      rounded-full
-                      transition
-                      ${generatePdf ? "bg-[#f7e7a8]" : "bg-[#5a5742]"}
-                      ${
-                        !inspection.settings.pdf_enabled
-                          ? "cursor-not-allowed opacity-40"
-                          : ""
-                      }
-                    `}
+                        relative
+                        h-7
+                        w-12
+                        rounded-full
+                        transition
+                        ${generatePdf ? "bg-[#f7e7a8]" : "bg-[#5a5742]"}
+                      `}
                   >
                     <span
                       className={`

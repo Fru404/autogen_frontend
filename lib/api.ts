@@ -101,33 +101,32 @@ export async function generateDocuments(
   );
 
   const response = await fetch(
-    `${API_URL}/generate`,
-    {
-      method: "POST",
-      body: formData,
+  `${process.env.NEXT_PUBLIC_API_URL}/generate`,
+  {
+    method: "POST",
+    body: formData,
+  }
+);
+
+if (!response.ok) {
+  let message = `Generation failed (${response.status})`;
+
+  try {
+    const errorData = await response.json();
+
+    if (typeof errorData.detail === "string") {
+      message = errorData.detail;
+    } else if (errorData.detail?.error) {
+      message = errorData.detail.error;
     }
-  );
-
-  if (!response.ok) {
-
-    let message =
-      "Could not generate documents.";
-
-    try {
-
-      const error =
-        await response.json();
-
-      message =
-        error.detail ||
-        message;
-
-    } catch {
-      // Ignore JSON parsing errors
-    }
-
-    throw new Error(message);
+  } catch {
+    // Backend did not return JSON
   }
 
-  return response.blob();
+  throw new Error(message);
 }
+
+return response.blob();
+  }
+
+  
