@@ -285,18 +285,22 @@ export default function Home() {
 
         <div className="flex items-center justify-between">
           <div className="group flex items-center gap-3">
+            {/*
             <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[#202020] text-sm font-bold text-[#f7e7a8] shadow-sm transition-transform duration-300 group-hover:rotate-[-4deg]">
               Ag
             </div>
-
+*/}
             <div>
+              {/*
               <div className="text-[17px] font-bold tracking-[-0.03em] text-[#202020]">
                 Autogen
               </div>
-
+*/}
+              {/*
               <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#6e653d]">
                 Document automation
               </div>
+              */}
             </div>
           </div>
           <p className="text-[14px] font-bold tracking-[-0.03em] text-[#6e653d]">
@@ -310,17 +314,9 @@ export default function Home() {
         {/* ================================================= */}
 
         <section className="max-w-3xl pb-14 pt-20 lg:pt-24">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d7c77e] bg-[#fffdf3]/70 px-3 py-1.5 backdrop-blur-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#202020]" />
-
-            <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#625b38]">
-              Generate anything
-            </span>
-          </div>
-
           <h1 className="max-w-3xl text-5xl font-bold leading-[0.98] tracking-[-0.055em] text-[#202020] sm:text-6xl lg:text-7xl">
-            Turn your data into
-            <span className="block">finished documents.</span>
+            Generate receipts from
+            <span className="block"> client list and avoid manual work.</span>
           </h1>
 
           <p className="mt-7 max-w-xl text-base leading-7 text-[#625b38] sm:text-lg">
@@ -404,7 +400,7 @@ export default function Home() {
             onClick={handleInspect}
             className="rounded-full bg-[#202020] px-6 py-3 text-sm font-semibold text-[#f7e7a8] shadow-lg shadow-black/10 transition-all hover:-translate-y-0.5 hover:bg-[#343434] disabled:cursor-not-allowed disabled:opacity-30"
           >
-            {loading ? "Analyzing..." : "Analyze files →"}
+            {loading ? "Verifying..." : "Verify files →"}
           </button>
         </div>
 
@@ -667,23 +663,23 @@ export default function Home() {
                   <div className="mt-6">
                     <div className="mb-2 flex items-end justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-[#302d20]">
+                        <p className="text-sm font-semibold text-[#FFFFFF]">
                           Generating receipts
                         </p>
 
-                        <p className="mt-1 text-xs text-[#777052]">
+                        <p className="mt-1 text-xs text-[#FFFFFF]">
                           {progressMessage}
                         </p>
                       </div>
 
-                      <span className="text-2xl font-bold text-[#302d20]">
+                      <span className="text-2xl font-bold text-[#89CFF0]">
                         {progress}%
                       </span>
                     </div>
 
                     <div className="h-2.5 overflow-hidden rounded-full bg-[#e5dfc4]">
                       <div
-                        className="h-full rounded-full bg-[#302d20] transition-[width] duration-300 ease-out"
+                        className="h-full rounded-full bg-[#89CFF0] transition-[width] duration-300 ease-out"
                         style={{
                           width: `${progress}%`,
                         }}
@@ -707,7 +703,7 @@ export default function Home() {
                   type="button"
                   onClick={handleGenerate}
                   disabled={isGenerating || !templateFile || rows.length === 0}
-                  className="rounded-xl bg-[#302d20] px-6 py-3 text-sm font-semibold text-[#fffbea] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-xl bg-[#f7e7a8] px-6 py-3 text-sm font-semibold text-[#202020] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isGenerating ? "Generating..." : "Generate receipts"}
                 </button>
