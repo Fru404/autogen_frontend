@@ -667,23 +667,23 @@ export default function Home() {
                   <div className="mt-6">
                     <div className="mb-2 flex items-end justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-[#302d20]">
+                        <p className="text-sm font-semibold text-[#FFFFFF]">
                           Generating receipts
                         </p>
 
-                        <p className="mt-1 text-xs text-[#777052]">
+                        <p className="mt-1 text-xs text-[#FFFFFF]">
                           {progressMessage}
                         </p>
                       </div>
 
-                      <span className="text-2xl font-bold text-[#302d20]">
+                      <span className="text-2xl font-bold text-[#89CFF0]">
                         {progress}%
                       </span>
                     </div>
 
                     <div className="h-2.5 overflow-hidden rounded-full bg-[#e5dfc4]">
                       <div
-                        className="h-full rounded-full bg-[#302d20] transition-[width] duration-300 ease-out"
+                        className="h-full rounded-full bg-[#89CFF0] transition-[width] duration-300 ease-out"
                         style={{
                           width: `${progress}%`,
                         }}
@@ -707,7 +707,7 @@ export default function Home() {
                   type="button"
                   onClick={handleGenerate}
                   disabled={isGenerating || !templateFile || rows.length === 0}
-                  className="rounded-xl bg-[#302d20] px-6 py-3 text-sm font-semibold text-[#fffbea] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-xl bg-[#f7e7a8] px-6 py-3 text-sm font-semibold text-[#202020] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isGenerating ? "Generating..." : "Generate receipts"}
                 </button>
