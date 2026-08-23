@@ -29,6 +29,16 @@ export default function Home() {
 
   const [success, setSuccess] = useState("");
 
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const [progress, setProgress] = useState(0);
+
+  const [progressMessage, setProgressMessage] = useState("");
+
+  const [progressCompleted, setProgressCompleted] = useState(0);
+
+  const [progressTotal, setProgressTotal] = useState(0);
+
   // ==========================================================
   // INSPECT
   // ==========================================================
@@ -85,36 +95,53 @@ export default function Home() {
 
   async function handleGenerate() {
     if (!templateFile) {
-      setError("Please upload a Word template.");
-
       return;
     }
 
     if (!rows.length) {
-      setError("There are no client records to generate.");
-
       return;
     }
-
-    if (inspection && inspection.validation.missing_fields.length) {
-      setError("Fix the missing template fields before generating.");
-
-      return;
-    }
-
-    setError("");
-    setSuccess("");
-    setGenerating(true);
 
     try {
-      const blob = await generateDocuments(templateFile, rows, generatePdf);
+      setIsGenerating(true);
 
-      const url = window.URL.createObjectURL(blob);
+      setProgress(0);
+
+      setProgressCompleted(0);
+
+      setProgressTotal(rows.length);
+
+      setProgressMessage("Preparing receipts...");
+
+      const blob = await generateDocuments(
+        templateFile,
+
+        rows,
+
+        generatePdf,
+
+        (data) => {
+          setProgress(data.progress);
+
+          setProgressMessage(data.message);
+
+          setProgressCompleted(data.completed);
+
+          setProgressTotal(data.total);
+        },
+      );
+
+      // ======================================================
+      // DOWNLOAD ZIP
+      // ======================================================
+
+      const url = URL.createObjectURL(blob);
 
       const link = document.createElement("a");
 
       link.href = url;
-      link.download = "autogen-documents.zip";
+
+      link.download = "Autogen_Receipts.zip";
 
       document.body.appendChild(link);
 
@@ -122,19 +149,17 @@ export default function Home() {
 
       link.remove();
 
-      window.URL.revokeObjectURL(url);
+      URL.revokeObjectURL(url);
 
-      setSuccess(
-        `${rows.length} document${
-          rows.length === 1 ? "" : "s"
-        } generated successfully.`,
-      );
+      setProgress(100);
+
+      setProgressMessage("All receipts completed.");
     } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "Document generation failed.",
-      );
+      console.error(error);
+
+      alert(error instanceof Error ? error.message : "Generation failed.");
     } finally {
-      setGenerating(false);
+      setIsGenerating(false);
     }
   }
 
@@ -637,15 +662,54 @@ export default function Home() {
                   </button>
                 </div>
               </div>
+              <div className="mt-4 text-sm text-[#bdb578]">
+                {isGenerating && (
+                  <div className="mt-6">
+                    <div className="mb-2 flex items-end justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-[#302d20]">
+                          Generating receipts
+                        </p>
 
+                        <p className="mt-1 text-xs text-[#777052]">
+                          {progressMessage}
+                        </p>
+                      </div>
+
+                      <span className="text-2xl font-bold text-[#302d20]">
+                        {progress}%
+                      </span>
+                    </div>
+
+                    <div className="h-2.5 overflow-hidden rounded-full bg-[#e5dfc4]">
+                      <div
+                        className="h-full rounded-full bg-[#302d20] transition-[width] duration-300 ease-out"
+                        style={{
+                          width: `${progress}%`,
+                        }}
+                      />
+                    </div>
+
+                    <div className="mt-2 flex justify-between text-xs text-[#777052]">
+                      <span>
+                        {progressCompleted} of {progressTotal}
+                      </span>
+
+                      {progress > 0 && progress < 100 && (
+                        <span>Please wait...</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="mt-7 flex justify-end border-t border-[#46442f] pt-6">
                 <button
                   type="button"
-                  disabled={!ready || generating}
                   onClick={handleGenerate}
-                  className="rounded-full bg-[#f7e7a8] px-7 py-3.5 text-sm font-bold text-[#202020] transition hover:-translate-y-0.5 hover:bg-[#fff2b8] disabled:cursor-not-allowed disabled:opacity-30"
+                  disabled={isGenerating || !templateFile || rows.length === 0}
+                  className="rounded-xl bg-[#302d20] px-6 py-3 text-sm font-semibold text-[#fffbea] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {generating ? "Generating..." : "Generate ZIP →"}
+                  {isGenerating ? "Generating..." : "Generate receipts"}
                 </button>
               </div>
             </div>
