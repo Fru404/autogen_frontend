@@ -1,3 +1,9 @@
+// lib/api.ts
+
+// ============================================================
+// TYPES
+// ============================================================
+
 export interface InspectionResult {
   template: {
     filename: string;
@@ -24,29 +30,86 @@ export interface InspectionResult {
 
 
 // ============================================================
+// PROGRESS TYPES
+// ============================================================
+
+export interface GenerationProgress {
+  status:
+    | "idle"
+    | "starting"
+    | "processing"
+    | "combining"
+    | "completed"
+    | "error";
+
+  total: number;
+
+  completed: number;
+
+  percentage: number;
+
+  current_file?: string;
+
+  elapsed_seconds: number;
+
+  average_seconds_per_file?: number;
+
+  estimated_remaining_seconds?: number;
+
+  zip_seconds?: number;
+
+  total_seconds?: number;
+
+  coordinator?: {
+    completed: number;
+    total: number;
+  };
+
+  workers?: {
+    id: string;
+    completed: number;
+    total: number;
+    status: string;
+  }[];
+
+  message?: string;
+
+  error?: string;
+}
+
+
+// ============================================================
 // API URL
 // ============================================================
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  //"https://autogen-backend-api.onrender.com";
-  "https://autogen-distr-compute-node-1.onrender.com";
+  "https://autogen-backend-api.onrender.com";
 
 
 // ============================================================
-// PROGRESS TYPE
+// HELPER
 // ============================================================
 
-export interface GenerationProgress {
-  job_id: string;
-  status: string;
-  progress: number;
-  completed: number;
-  total: number;
-  current: string;
-  message: string;
-  error: string | null;
-  zip_ready: boolean;
+async function getErrorMessage(
+  response: Response,
+  fallback: string
+): Promise<string> {
+
+  try {
+
+    const error = await response.json();
+
+    return (
+      error.detail ||
+      error.message ||
+      fallback
+    );
+
+  } catch {
+
+    return fallback;
+  }
 }
 
 
@@ -71,7 +134,6 @@ export async function inspectFiles(
     excel
   );
 
-
   const response = await fetch(
     `${API_URL}/inspect`,
     {
@@ -80,32 +142,16 @@ export async function inspectFiles(
     }
   );
 
-
   if (!response.ok) {
 
-    let message =
-      "Could not inspect files.";
+    const message =
+      await getErrorMessage(
+        response,
+        "Could not inspect files."
+      );
 
-    try {
-
-      const error =
-        await response.json();
-
-      message =
-        error.detail ||
-        message;
-
-    } catch {
-
-      // Ignore JSON parsing errors
-
-    }
-
-    throw new Error(
-      message
-    );
+    throw new Error(message);
   }
-
 
   return response.json();
 }
@@ -116,224 +162,136 @@ export async function inspectFiles(
 // ============================================================
 
 export async function generateDocuments(
-
   template: File,
-
   rows: Record<string, string>[],
-
-  generatePdf: boolean,
-
-  onProgress?: (
-    progress: GenerationProgress
-  ) => void
-
+  generatePdf: boolean = false
 ): Promise<Blob> {
 
-
-  const formData =
-    new FormData();
-
+  const formData = new FormData();
 
   formData.append(
     "template",
     template
   );
 
-
   formData.append(
     "data_json",
     JSON.stringify(rows)
   );
-
 
   formData.append(
     "generate_pdf",
     String(generatePdf)
   );
 
-
-  // ==========================================================
-  // START GENERATION
-  // ==========================================================
-
-  const response =
-    await fetch(
-
-      `${API_URL}/generate`,
-
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-
+  const response = await fetch(
+    `${API_URL}/generate`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
 
   if (!response.ok) {
 
-    let message =
-      "Could not generate documents.";
-
-    try {
-
-      const error =
-        await response.json();
-
-      message =
-        error.detail ||
-        message;
-
-    } catch {
-
-      // Ignore JSON parsing errors
-
-    }
-
-    throw new Error(
-      message
-    );
-  }
-
-
-  // ==========================================================
-  // GET JOB
-  // ==========================================================
-
-  const job = await response.json();
-
-  const jobId =
-    job.job_id;
-
-
-  if (!jobId) {
-
-    throw new Error(
-      "Backend did not return a generation job ID."
-    );
-  }
-
-
-  // ==========================================================
-  // CHECK PROGRESS
-  // ==========================================================
-
-  while (true) {
-
-    await new Promise(
-      (resolve) =>
-        setTimeout(
-          resolve,
-          500
-        )
-    );
-
-
-    const progressResponse =
-      await fetch(
-
-        `${API_URL}/generate/${jobId}/progress`,
-
-        {
-          cache: "no-store",
-        }
+    const message =
+      await getErrorMessage(
+        response,
+        "Could not generate documents."
       );
 
+    throw new Error(message);
+  }
 
-    if (!progressResponse.ok) {
+  return response.blob();
+}
 
-      throw new Error(
+
+// ============================================================
+// GET GENERATION PROGRESS
+// ============================================================
+
+export async function getGenerationProgress(): Promise<GenerationProgress> {
+
+  const response = await fetch(
+    `${API_URL}/progress`,
+    {
+      method: "GET",
+
+      // Don't allow browser cache to return
+      // an old progress value.
+      cache: "no-store",
+    }
+  );
+
+  if (!response.ok) {
+
+    const message =
+      await getErrorMessage(
+        response,
         "Could not retrieve generation progress."
       );
-    }
 
-
-    const progress:
-      GenerationProgress =
-        await progressResponse.json();
-
-
-    // Send progress to page.tsx
-    if (onProgress) {
-
-      onProgress(
-        progress
-      );
-    }
-
-
-    // ========================================================
-    // GENERATION FAILED
-    // ========================================================
-
-    if (
-      progress.status ===
-      "error"
-    ) {
-
-      throw new Error(
-
-        progress.error ||
-        "Receipt generation failed."
-      );
-    }
-
-
-    // ========================================================
-    // GENERATION FINISHED
-    // ========================================================
-
-    if (
-
-      progress.status ===
-      "completed"
-
-      &&
-
-      progress.zip_ready
-
-    ) {
-
-      break;
-    }
-
+    throw new Error(message);
   }
 
-
-  // ==========================================================
-  // DOWNLOAD ZIP
-  // ==========================================================
-
-  const downloadResponse =
-    await fetch(
-
-      `${API_URL}/generate/${jobId}/download`
-    );
-
-
-  if (!downloadResponse.ok) {
-
-    let message =
-      "Could not download generated ZIP.";
-
-    try {
-
-      const error =
-        await downloadResponse.json();
-
-      message =
-        error.detail ||
-        message;
-
-    } catch {
-
-      // Ignore JSON parsing errors
-
-    }
-
-    throw new Error(
-      message
-    );
-  }
-
-
-  return downloadResponse.blob();
+  return response.json();
 }
+
+
+// ============================================================
+// RESET PROGRESS
+// ============================================================
+
+export async function resetGenerationProgress(): Promise<void> {
+
+  const response = await fetch(
+    `${API_URL}/progress/reset`,
+    {
+      method: "POST",
+    }
+  );
+
+  if (!response.ok) {
+
+    const message =
+      await getErrorMessage(
+        response,
+        "Could not reset generation progress."
+      );
+
+    throw new Error(message);
+  }
+}
+
+
+// ============================================================
+// HEALTH CHECK
+// ============================================================
+
+export async function checkCoordinator(): Promise<boolean> {
+
+  try {
+
+    const response = await fetch(
+      `${API_URL}/health`,
+      {
+        method: "GET",
+        cache: "no-store",
+      }
+    );
+
+    return response.ok;
+
+  } catch {
+
+    return false;
+  }
+}
+
+
+// ============================================================
+// API URL EXPORT
+// ============================================================
+
+export { API_URL };
