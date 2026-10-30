@@ -84,7 +84,7 @@ export interface GenerationProgress {
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://autogen-distr-compute-node-1.onrender.com";
+  "https://autogen-backend-api.onrender.com";
 
 
 // ============================================================
