@@ -249,18 +249,7 @@ export default function Home() {
 
         <div className="flex items-center justify-between">
           <div className="group flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[#202020] text-sm font-bold text-[#f7e7a8] shadow-sm transition-transform duration-300 group-hover:rotate-[-4deg]">
-              Ag
-            </div>
-
-            <div>
-              <div className="text-[17px] font-bold tracking-[-0.03em] text-[#202020]">
-                Autogen
-              </div>
-
-              <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#6e653d]">
-                Document automation
-              </div>
+            
             </div>
           </div>
           <p className="text-[14px] font-bold tracking-[-0.03em] text-[#6e653d]">
@@ -274,13 +263,7 @@ export default function Home() {
         {/* ================================================= */}
 
         <section className="max-w-3xl pb-14 pt-20 lg:pt-24">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d7c77e] bg-[#fffdf3]/70 px-3 py-1.5 backdrop-blur-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#202020]" />
-
-            <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#625b38]">
-              Generate anything
-            </span>
-          </div>
+          
 
           <h1 className="max-w-3xl text-5xl font-bold leading-[0.98] tracking-[-0.055em] text-[#202020] sm:text-6xl lg:text-7xl">
             Turn your data into
