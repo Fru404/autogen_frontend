@@ -6,14 +6,7 @@ import FileUpload from "@/components/FileUpload";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 
-import {
-  inspectFiles,
-  generateDocuments,
-  getGenerationProgress,
-  resetGenerationProgress,
-  InspectionResult,
-  GenerationProgress,
-} from "@/lib/api";
+import { inspectFiles, generateDocuments, InspectionResult } from "@/lib/api";
 
 export default function Home() {
   const [templateFile, setTemplateFile] = useState<File | null>(null);
@@ -26,7 +19,11 @@ export default function Home() {
 
   const [search, setSearch] = useState("");
 
+  const [generatePdf, setGeneratePdf] = useState(false);
+
   const [loading, setLoading] = useState(false);
+
+  const [generating, setGenerating] = useState(false);
 
   const [error, setError] = useState("");
 
@@ -41,9 +38,6 @@ export default function Home() {
   const [progressCompleted, setProgressCompleted] = useState(0);
 
   const [progressTotal, setProgressTotal] = useState(0);
-
-  const [generationProgress, setGenerationProgress] =
-    useState<GenerationProgress | null>(null);
 
   // ==========================================================
   // INSPECT
@@ -101,94 +95,70 @@ export default function Home() {
 
   async function handleGenerate() {
     if (!templateFile) {
-      setError("Please upload a Word template.");
       return;
     }
 
     if (!rows.length) {
-      setError("There are no client records to generate.");
       return;
     }
 
-    setError("");
-    setSuccess("");
-    setIsGenerating(true);
-    setProgress(0);
-    setProgressCompleted(0);
-    setProgressTotal(rows.length);
-    setProgressMessage("Preparing receipts...");
-    setGenerationProgress(null);
-
-    let polling = true;
-
-    const pollProgress = async () => {
-      while (polling) {
-        try {
-          const data = await getGenerationProgress();
-
-          setGenerationProgress(data);
-          setProgress(data.percentage ?? 0);
-          setProgressMessage(data.message || "Generating receipts...");
-          setProgressCompleted(data.completed ?? 0);
-          setProgressTotal(data.total || rows.length);
-        } catch (error) {
-          console.warn("Could not retrieve generation progress:", error);
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    };
-
     try {
-      try {
-        await resetGenerationProgress();
-      } catch (error) {
-        console.warn("Could not reset generation progress:", error);
-      }
+      setIsGenerating(true);
 
-      const pollingPromise = pollProgress();
+      setProgress(0);
 
-      setProgressMessage("Generating receipts...");
+      setProgressCompleted(0);
 
-      const blob = await generateDocuments(templateFile, rows, false);
+      setProgressTotal(rows.length);
 
-      polling = false;
-      await pollingPromise;
+      setProgressMessage("Preparing receipts...");
 
-      try {
-        const finalProgress = await getGenerationProgress();
-        setGenerationProgress(finalProgress);
-        setProgress(finalProgress.percentage ?? 100);
-        setProgressCompleted(finalProgress.completed ?? rows.length);
-        setProgressTotal(finalProgress.total || rows.length);
-        setProgressMessage(finalProgress.message || "Generation complete.");
-      } catch (error) {
-        console.warn("Could not retrieve final generation progress:", error);
-        setProgress(100);
-        setProgressCompleted(rows.length);
-        setProgressTotal(rows.length);
-        setProgressMessage("Generation complete.");
-      }
+      const blob = await generateDocuments(
+        templateFile,
+
+        rows,
+
+        generatePdf,
+
+        (data) => {
+          setProgress(data.progress);
+
+          setProgressMessage(data.message);
+
+          setProgressCompleted(data.completed);
+
+          setProgressTotal(data.total);
+        },
+      );
+
+      // ======================================================
+      // DOWNLOAD ZIP
+      // ======================================================
 
       const url = URL.createObjectURL(blob);
+
       const link = document.createElement("a");
+
       link.href = url;
+
       link.download = "Autogen_Receipts.zip";
+
       document.body.appendChild(link);
+
       link.click();
+
       link.remove();
+
       URL.revokeObjectURL(url);
 
-      setSuccess(
-        "All receipts were generated and the ZIP download has started.",
-      );
+      setProgress(100);
+
+      setProgressMessage("All receipts completed.");
     } catch (error) {
-      polling = false;
       console.error(error);
-      setError(error instanceof Error ? error.message : "Generation failed.");
-      setProgressMessage("Generation failed.");
+
+      alert(error instanceof Error ? error.message : "Generation failed.");
     } finally {
-      polling = false;
       setIsGenerating(false);
     }
   }
@@ -203,6 +173,7 @@ export default function Home() {
     setInspection(null);
     setRows([]);
     setSearch("");
+    setGeneratePdf(false);
     setError("");
     setSuccess("");
   }
@@ -314,22 +285,18 @@ export default function Home() {
 
         <div className="flex items-center justify-between">
           <div className="group flex items-center gap-3">
-            {/*
             <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[#202020] text-sm font-bold text-[#f7e7a8] shadow-sm transition-transform duration-300 group-hover:rotate-[-4deg]">
               Ag
             </div>
-*/}
+
             <div>
-              {/*
               <div className="text-[17px] font-bold tracking-[-0.03em] text-[#202020]">
                 Autogen
               </div>
-*/}
-              {/*
+
               <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#6e653d]">
                 Document automation
               </div>
-              */}
             </div>
           </div>
           <p className="text-[14px] font-bold tracking-[-0.03em] text-[#6e653d]">
@@ -343,9 +310,17 @@ export default function Home() {
         {/* ================================================= */}
 
         <section className="max-w-3xl pb-14 pt-20 lg:pt-24">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d7c77e] bg-[#fffdf3]/70 px-3 py-1.5 backdrop-blur-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#202020]" />
+
+            <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#625b38]">
+              Generate anything
+            </span>
+          </div>
+
           <h1 className="max-w-3xl text-5xl font-bold leading-[0.98] tracking-[-0.055em] text-[#202020] sm:text-6xl lg:text-7xl">
-            Generate receipts from
-            <span className="block"> client list and avoid manual work.</span>
+            Turn your data into
+            <span className="block">finished documents.</span>
           </h1>
 
           <p className="mt-7 max-w-xl text-base leading-7 text-[#625b38] sm:text-lg">
@@ -429,7 +404,7 @@ export default function Home() {
             onClick={handleInspect}
             className="rounded-full bg-[#202020] px-6 py-3 text-sm font-semibold text-[#f7e7a8] shadow-lg shadow-black/10 transition-all hover:-translate-y-0.5 hover:bg-[#343434] disabled:cursor-not-allowed disabled:opacity-30"
           >
-            {loading ? "Verifying..." : "Verify files →"}
+            {loading ? "Analyzing..." : "Analyze files →"}
           </button>
         </div>
 
@@ -650,15 +625,41 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* PROCESSING INFO */}
+                {/* PDF TOGGLE */}
 
-                <div className="text-right">
-                  <p className="text-sm font-semibold">
-                    Distributed processing
-                  </p>
-                  <p className="text-xs text-[#aaa16e]">
-                    Coordinator + workers
-                  </p>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-sm font-semibold">PDF copies</p>
+
+                    <p className="text-xs text-[#aaa16e]">Generate PDFs too</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setGeneratePdf(!generatePdf)}
+                    disabled={true}
+                    className={`
+                        relative
+                        h-7
+                        w-12
+                        rounded-full
+                        transition
+                        ${generatePdf ? "bg-[#f7e7a8]" : "bg-[#5a5742]"}
+                      `}
+                  >
+                    <span
+                      className={`
+                        absolute
+                        top-1
+                        h-5
+                        w-5
+                        rounded-full
+                        bg-[#202020]
+                        transition
+                        ${generatePdf ? "left-6" : "left-1"}
+                      `}
+                    />
+                  </button>
                 </div>
               </div>
               <div className="mt-4 text-sm text-[#bdb578]">
@@ -669,168 +670,37 @@ export default function Home() {
                         <p className="text-sm font-semibold text-[#FFFFFF]">
                           Generating receipts
                         </p>
+
                         <p className="mt-1 text-xs text-[#FFFFFF]">
                           {progressMessage}
                         </p>
                       </div>
 
                       <span className="text-2xl font-bold text-[#89CFF0]">
-                        {Math.round(progress)}%
+                        {progress}%
                       </span>
                     </div>
 
                     <div className="h-2.5 overflow-hidden rounded-full bg-[#e5dfc4]">
                       <div
                         className="h-full rounded-full bg-[#89CFF0] transition-[width] duration-300 ease-out"
-                        style={{ width: `${progress}%` }}
+                        style={{
+                          width: `${progress}%`,
+                        }}
                       />
                     </div>
 
                     <div className="mt-2 flex justify-between text-xs text-[#777052]">
                       <span>
-                        {progressCompleted} of {progressTotal} files
+                        {progressCompleted} of {progressTotal}
                       </span>
+
                       {progress > 0 && progress < 100 && (
-                        <span>
-                          {generationProgress?.estimated_remaining_seconds !=
-                          null
-                            ? `${generationProgress.estimated_remaining_seconds.toFixed(1)} sec remaining`
-                            : "Processing..."}
-                        </span>
+                        <span>Please wait...</span>
                       )}
                     </div>
-
-                    {generationProgress && (
-                      <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
-                        <div className="rounded-xl bg-[#2b2b22] p-3">
-                          <p className="text-[10px] uppercase tracking-wide text-[#aaa16e]">
-                            Elapsed
-                          </p>
-                          <p className="mt-1 font-semibold text-white">
-                            {generationProgress.elapsed_seconds?.toFixed(1) ??
-                              "0.0"}{" "}
-                            sec
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-[#2b2b22] p-3">
-                          <p className="text-[10px] uppercase tracking-wide text-[#aaa16e]">
-                            Average / file
-                          </p>
-                          <p className="mt-1 font-semibold text-white">
-                            {generationProgress.average_seconds_per_file != null
-                              ? `${generationProgress.average_seconds_per_file.toFixed(3)} sec`
-                              : "--"}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-[#2b2b22] p-3">
-                          <p className="text-[10px] uppercase tracking-wide text-[#aaa16e]">
-                            ZIP time
-                          </p>
-                          <p className="mt-1 font-semibold text-white">
-                            {generationProgress.zip_seconds != null
-                              ? `${generationProgress.zip_seconds.toFixed(1)} sec`
-                              : "--"}
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl bg-[#2b2b22] p-3">
-                          <p className="text-[10px] uppercase tracking-wide text-[#aaa16e]">
-                            Total time
-                          </p>
-                          <p className="mt-1 font-semibold text-white">
-                            {generationProgress.total_seconds != null
-                              ? `${generationProgress.total_seconds.toFixed(1)} sec`
-                              : "--"}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {generationProgress?.current_file && (
-                      <p
-                        className="mt-3 truncate text-xs text-[#aaa16e]"
-                        title={generationProgress.current_file}
-                      >
-                        Current file: {generationProgress.current_file}
-                      </p>
-                    )}
-
-                    {generationProgress?.workers &&
-                      generationProgress.workers.length > 0 && (
-                        <div className="mt-4 space-y-1">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#aaa16e]">
-                            Workers
-                          </p>
-                          {generationProgress.workers.map((worker) => (
-                            <div
-                              key={worker.id}
-                              className="flex items-center justify-between rounded-lg bg-[#2b2b22] px-3 py-2 text-xs"
-                            >
-                              <span className="text-white">{worker.id}</span>
-                              <span className="text-[#aaa16e]">
-                                {worker.completed} / {worker.total} ·{" "}
-                                {worker.status}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                   </div>
                 )}
-
-                {!isGenerating &&
-                  generationProgress?.status === "completed" && (
-                    <div className="mt-6 rounded-2xl border border-[#46442f] bg-[#2b2b22] p-5">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-white">
-                            Generation complete
-                          </p>
-                          <p className="mt-1 text-xs text-[#aaa16e]">
-                            {generationProgress.completed} /{" "}
-                            {generationProgress.total} files created
-                          </p>
-                        </div>
-                        <span className="text-xl font-bold text-[#89CFF0]">
-                          100%
-                        </span>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wide text-[#aaa16e]">
-                            Receipt generation
-                          </p>
-                          <p className="mt-1 font-semibold text-white">
-                            {generationProgress.elapsed_seconds?.toFixed(1) ??
-                              "--"}{" "}
-                            sec
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wide text-[#aaa16e]">
-                            ZIP creation
-                          </p>
-                          <p className="mt-1 font-semibold text-white">
-                            {generationProgress.zip_seconds?.toFixed(1) ?? "--"}{" "}
-                            sec
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wide text-[#aaa16e]">
-                            Total
-                          </p>
-                          <p className="mt-1 font-semibold text-white">
-                            {generationProgress.total_seconds?.toFixed(1) ??
-                              "--"}{" "}
-                            sec
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
               </div>
               <div className="mt-7 flex justify-end border-t border-[#46442f] pt-6">
                 <button
