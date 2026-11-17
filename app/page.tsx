@@ -31,13 +31,6 @@ export default function Home() {
 
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const [progress, setProgress] = useState(0);
-
-  const [progressMessage, setProgressMessage] = useState("");
-
-  const [progressCompleted, setProgressCompleted] = useState(0);
-
-  const [progressTotal, setProgressTotal] = useState(0);
 
   // ==========================================================
   // INSPECT
@@ -94,70 +87,41 @@ export default function Home() {
   // ==========================================================
 
   async function handleGenerate() {
-    if (!templateFile) {
-      return;
-    }
-
-    if (!rows.length) {
+    if (!templateFile || !rows.length) {
       return;
     }
 
     try {
       setIsGenerating(true);
-
-      setProgress(0);
-
-      setProgressCompleted(0);
-
-      setProgressTotal(rows.length);
-
-      setProgressMessage("Preparing receipts...");
+      setError("");
+      setSuccess("");
 
       const blob = await generateDocuments(
         templateFile,
-
         rows,
-
         generatePdf,
-
-        (data) => {
-          setProgress(data.progress);
-
-          setProgressMessage(data.message);
-
-          setProgressCompleted(data.completed);
-
-          setProgressTotal(data.total);
-        },
       );
 
-      // ======================================================
-      // DOWNLOAD ZIP
-      // ======================================================
-
+      // Download the ZIP returned directly by the backend.
       const url = URL.createObjectURL(blob);
-
       const link = document.createElement("a");
 
       link.href = url;
-
       link.download = "Autogen_Receipts.zip";
 
       document.body.appendChild(link);
-
       link.click();
-
       link.remove();
 
-      URL.revokeObjectURL(url);
+      // Revoke after the browser has had a chance to start the download.
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-      setProgress(100);
-
-      setProgressMessage("All receipts completed.");
+      setSuccess("Your receipts have been generated successfully.");
     } catch (error) {
       console.error(error);
-
-      alert(error instanceof Error ? error.message : "Generation failed.");
+      setError(
+        error instanceof Error ? error.message : "Generation failed.",
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -662,46 +626,16 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-              <div className="mt-4 text-sm text-[#bdb578]">
-                {isGenerating && (
-                  <div className="mt-6">
-                    <div className="mb-2 flex items-end justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-[#FFFFFF]">
-                          Generating receipts
-                        </p>
-
-                        <p className="mt-1 text-xs text-[#FFFFFF]">
-                          {progressMessage}
-                        </p>
-                      </div>
-
-                      <span className="text-2xl font-bold text-[#89CFF0]">
-                        {progress}%
-                      </span>
-                    </div>
-
-                    <div className="h-2.5 overflow-hidden rounded-full bg-[#e5dfc4]">
-                      <div
-                        className="h-full rounded-full bg-[#89CFF0] transition-[width] duration-300 ease-out"
-                        style={{
-                          width: `${progress}%`,
-                        }}
-                      />
-                    </div>
-
-                    <div className="mt-2 flex justify-between text-xs text-[#777052]">
-                      <span>
-                        {progressCompleted} of {progressTotal}
-                      </span>
-
-                      {progress > 0 && progress < 100 && (
-                        <span>Please wait...</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+              {isGenerating && (
+                <div className="mt-6">
+                  <p className="text-sm font-semibold text-white">
+                    Generating receipts...
+                  </p>
+                  <p className="mt-1 text-xs text-[#bdb578]">
+                    Please wait while your documents are being prepared.
+                  </p>
+                </div>
+              )}
               <div className="mt-7 flex justify-end border-t border-[#46442f] pt-6">
                 <button
                   type="button"
