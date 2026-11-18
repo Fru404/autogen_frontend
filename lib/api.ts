@@ -66,25 +66,80 @@ export async function inspectFiles(
 }
 
 // ============================================================
-// GENERATE DOCUMENTS - DIRECT ZIP DOWNLOAD
+// GENERATION PROGRESS
+// ============================================================
+
+export interface GenerationProgress {
+  request_id: string;
+  status: "processing" | "completed" | "failed";
+  percent: number;
+  message: string;
+  completed: number;
+  total: number;
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+// ============================================================
+// GENERATE DOCUMENTS - DIRECT ZIP + SERVER PROGRESS
 // ============================================================
 
 export async function generateDocuments(
   template: File,
   rows: Record<string, string>[],
   generatePdf: boolean,
+  onProgress?: (progress: GenerationProgress) => void,
 ): Promise<Blob> {
+  const requestId = crypto.randomUUID();
   const formData = new FormData();
 
   formData.append("template", template);
   formData.append("data_json", JSON.stringify(rows));
   formData.append("generate_pdf", String(generatePdf));
+  formData.append("request_id", requestId);
 
-  // The backend processes the request and responds with a ZIP file.
-  const response = await fetch(`${API_URL}/generate`, {
-    method: "POST",
-    body: formData,
-  });
+  // Poll the lightweight progress endpoint while /generate creates the ZIP.
+  // The ZIP itself is still returned directly by the same POST request.
+  let stopPolling = false;
+  const pollProgress = async () => {
+    while (!stopPolling) {
+      try {
+        const progressResponse = await fetch(
+          `${API_URL}/generate/progress/${requestId}`,
+          { cache: "no-store" },
+        );
+
+        if (progressResponse.ok) {
+          const progress: GenerationProgress = await progressResponse.json();
+          onProgress?.(progress);
+
+          if (progress.status === "completed" || progress.status === "failed") {
+            return;
+          }
+        }
+      } catch (error) {
+        // A temporary polling failure should not cancel ZIP generation.
+        console.warn("Could not retrieve generation progress:", error);
+      }
+
+      if (!stopPolling) await delay(500);
+    }
+  };
+
+  const pollingTask = pollProgress();
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}/generate`, {
+      method: "POST",
+      body: formData,
+    });
+  } finally {
+    stopPolling = true;
+    await pollingTask;
+  }
 
   if (!response.ok) {
     const responseText = await response.text();
@@ -100,6 +155,16 @@ export async function generateDocuments(
     throw new Error(message);
   }
 
-  // Do not call response.json(): the successful response is a ZIP binary.
-  return response.blob();
+  // Do not parse the successful response as JSON: it is the ZIP binary.
+  const blob = await response.blob();
+  onProgress?.({
+    request_id: requestId,
+    status: "completed",
+    percent: 100,
+    message: "ZIP archive ready.",
+    completed: rows.length,
+    total: rows.length,
+  });
+
+  return blob;
 }

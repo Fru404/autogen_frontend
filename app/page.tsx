@@ -30,6 +30,8 @@ export default function Home() {
   const [success, setSuccess] = useState("");
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [generationMessage, setGenerationMessage] = useState("");
 
 
   // ==========================================================
@@ -93,6 +95,8 @@ export default function Home() {
 
     try {
       setIsGenerating(true);
+      setGenerationProgress(0);
+      setGenerationMessage("Starting generation...");
       setError("");
       setSuccess("");
 
@@ -100,6 +104,10 @@ export default function Home() {
         templateFile,
         rows,
         generatePdf,
+        (progress) => {
+          setGenerationProgress(progress.percent);
+          setGenerationMessage(progress.message);
+        },
       );
 
       // Download the ZIP returned directly by the backend.
@@ -116,6 +124,8 @@ export default function Home() {
       // Revoke after the browser has had a chance to start the download.
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 
+      setGenerationProgress(100);
+      setGenerationMessage("ZIP archive ready. Starting download...");
       setSuccess("Your receipts have been generated successfully.");
     } catch (error) {
       console.error(error);
@@ -140,6 +150,8 @@ export default function Home() {
     setGeneratePdf(false);
     setError("");
     setSuccess("");
+    setGenerationProgress(0);
+    setGenerationMessage("");
   }
 
   const ready = Boolean(
@@ -610,12 +622,30 @@ export default function Home() {
                 </div>
               </div>
               {isGenerating && (
-                <div className="mt-6">
-                  <p className="text-sm font-semibold text-white">
-                    Generating receipts...
-                  </p>
-                  <p className="mt-1 text-xs text-[#bdb578]">
-                    Please wait while your documents are being prepared.
+                <div className="mt-6" aria-live="polite" aria-atomic="true">
+                  <div className="mb-2 flex items-center justify-between gap-4">
+                    <p className="text-sm font-semibold text-white">
+                      {generationMessage || "Generating receipts..."}
+                    </p>
+                    <p className="shrink-0 text-sm font-bold tabular-nums text-[#f7e7a8]">
+                      {generationProgress}%
+                    </p>
+                  </div>
+                  <div
+                    className="h-3 w-full overflow-hidden rounded-full bg-[#5a5742]"
+                    role="progressbar"
+                    aria-label="Receipt generation progress"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={generationProgress}
+                  >
+                    <div
+                      className="h-full rounded-full bg-[#f7e7a8] transition-[width] duration-300 ease-out"
+                      style={{ width: `${generationProgress}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-[#bdb578]">
+                    Progress is updated by the server as receipts are generated, PDFs are converted, and files are added to the ZIP.
                   </p>
                 </div>
               )}
